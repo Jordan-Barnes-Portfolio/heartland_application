@@ -1,5 +1,8 @@
+// ignore_for_file: library_private_types_in_public_api, sort_child_properties_last
+
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:heartland_photo_app/home_screen.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
@@ -34,10 +37,22 @@ class _PhotoScreenState extends State<PhotoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Take a Photo'),
-        backgroundColor: Colors.blueGrey[800],
-        elevation: 0,
-      ),
+          title: const Text('Annotate Image'),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+              icon: const Icon(Icons.home),
+              onPressed: () {
+                // Navigate back to HomeScreen
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => HomeScreen(cameras: [widget.camera]),
+                  ),
+                  (Route<dynamic> route) => false,
+                );
+              },
+            ),
+        ),
       body: FutureBuilder<void>(
         future: _initializeControllerFuture,
         builder: (context, snapshot) {
@@ -50,9 +65,9 @@ class _PhotoScreenState extends State<PhotoScreen> {
                   left: 0,
                   right: 0,
                   child: Container(
-                    padding: EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
                     color: Colors.black54,
-                    child: Text(
+                    child: const Text(
                       'Tap the camera button to take a photo',
                       style: TextStyle(color: Colors.white, fontSize: 16),
                       textAlign: TextAlign.center,
@@ -62,12 +77,12 @@ class _PhotoScreenState extends State<PhotoScreen> {
               ],
             );
           } else {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           }
         },
       ),
       floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.camera_alt),
+        child: const Icon(Icons.camera_alt),
         backgroundColor: Colors.blueGrey[800],
         onPressed: () async {
           try {

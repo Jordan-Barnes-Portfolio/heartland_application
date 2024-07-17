@@ -1,13 +1,26 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:heartland_photo_app/home_screen.dart';
+import 'package:heartland_photo_app/photo_screen.dart';
 import 'dart:io';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 
 class AnnotationScreen extends StatefulWidget {
   final String imagePath;
+  final String folder;
+  final List<CameraDescription> cameras;
 
-  const AnnotationScreen({Key? key, required this.imagePath}) : super(key: key);
+  const AnnotationScreen({
+    Key? key,
+    required this.imagePath,
+    required this.folder,
+    required this.cameras,
+  }) : super(key: key);
 
   @override
   _AnnotationScreenState createState() => _AnnotationScreenState();
@@ -19,6 +32,7 @@ class _AnnotationScreenState extends State<AnnotationScreen>
   late stt.SpeechToText _speech;
   bool _isListening = false;
   bool _speechInitialized = false;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -87,8 +101,8 @@ class _AnnotationScreenState extends State<AnnotationScreen>
             },
             listenMode: stt.ListenMode.confirmation,
             cancelOnError: true,
-            listenFor: Duration(seconds: 30),
-            pauseFor: Duration(seconds: 3),
+            listenFor: const Duration(seconds: 30),
+            pauseFor: const Duration(seconds: 3),
           );
           // If listen returns false, set _isListening back to false
           if (result == false) {
@@ -104,6 +118,100 @@ class _AnnotationScreenState extends State<AnnotationScreen>
     }
   }
 
+  Future<void> _uploadPhotoAndAnnotation() async {
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      final String uniqueId = const Uuid().v4();
+      final String fileName = '$uniqueId.jpg';
+      final String storagePath = '${widget.folder}/$fileName';
+
+      // Upload the image to Firebase Storage
+      final Reference storageRef =
+          FirebaseStorage.instance.ref().child(storagePath);
+      await storageRef.putFile(File(widget.imagePath));
+      final String imageUrl = await storageRef.getDownloadURL();
+
+      // Update Firestore
+      final DocumentReference folderRef =
+          FirebaseFirestore.instance.collection('folders').doc(widget.folder);
+
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        DocumentSnapshot folderSnapshot = await transaction.get(folderRef);
+
+        if (!folderSnapshot.exists) {
+          // If the folder document doesn't exist, create it with all fields
+          transaction.set(folderRef, {
+            'name': widget.folder,
+            'photoDescriptions': {imageUrl: _textController.text},
+            'photos': [imageUrl],
+          });
+        } else {
+          // If the folder document exists, update it
+          Map<String, dynamic> data =
+              folderSnapshot.data() as Map<String, dynamic>;
+
+          // Ensure 'name' field exists
+          if (!data.containsKey('name')) {
+            data['name'] = widget.folder;
+          }
+
+          // Update photoDescriptions
+          Map<String, dynamic> photoDescriptions =
+              Map<String, dynamic>.from(data['photoDescriptions'] ?? {});
+          photoDescriptions[imageUrl] = _textController.text;
+
+          // Update photos array
+          List<dynamic> photos = List<dynamic>.from(data['photos'] ?? []);
+          photos.add(imageUrl);
+
+          transaction.update(folderRef, {
+            'name': data['name'],
+            'photoDescriptions': photoDescriptions,
+            'photos': photos,
+          });
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Upload successful!')),
+      );
+
+      // Redirect to PhotoScreen after successful upload
+      if (!mounted) return;
+      final imagePath = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PhotoScreen(camera: widget.cameras.first),
+        ),
+      );
+      if (imagePath != null) {
+        // If a new photo was taken, replace the current AnnotationScreen with a new one
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AnnotationScreen(
+              imagePath: imagePath,
+              folder: widget.folder,
+              cameras: widget.cameras,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error uploading: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Upload failed. Please try again.')),
+      );
+    } finally {
+      setState(() {
+        _isUploading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -114,20 +222,19 @@ class _AnnotationScreenState extends State<AnnotationScreen>
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Annotate Image'),
+          title: const Text('Annotate Image'),
           backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back),
+            icon: const Icon(Icons.home),
             onPressed: () async {
               if (_isListening) await _speech.stop();
-              // Navigate back to the HomeScreen
-              final cameras = await availableCameras();
-              Navigator.of(context).pushReplacement(
+              // Navigate back to HomeScreen
+              Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(
-                  builder: (context) =>
-                      HomeScreen(cameras: cameras),
+                  builder: (context) => HomeScreen(cameras: widget.cameras),
                 ),
+                (Route<dynamic> route) => false,
               );
             },
           ),
@@ -138,7 +245,7 @@ class _AnnotationScreenState extends State<AnnotationScreen>
             children: [
               Expanded(
                 child: Card(
-                  margin: EdgeInsets.all(16),
+                  margin: const EdgeInsets.all(16),
                   elevation: 4,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -153,16 +260,16 @@ class _AnnotationScreenState extends State<AnnotationScreen>
                 ),
               ),
               Container(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.grey.withOpacity(0.3),
                       spreadRadius: 1,
                       blurRadius: 5,
-                      offset: Offset(0, -3),
+                      offset: const Offset(0, -3),
                     ),
                   ],
                 ),
@@ -176,7 +283,7 @@ class _AnnotationScreenState extends State<AnnotationScreen>
                         hintText: 'Your speech will appear here',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.blueGrey),
+                          borderSide: const BorderSide(color: Colors.blueGrey),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -187,7 +294,7 @@ class _AnnotationScreenState extends State<AnnotationScreen>
                         fillColor: Colors.grey[50],
                       ),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     ElevatedButton.icon(
                       icon: Icon(_isListening ? Icons.stop : Icons.mic),
                       label: Text(
@@ -195,12 +302,32 @@ class _AnnotationScreenState extends State<AnnotationScreen>
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
                             _isListening ? Colors.red : Colors.blueGrey[800],
-                        padding: EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       onPressed: _toggleListening,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Folder: ${widget.folder}',
+                      style:
+                          const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.cloud_upload),
+                      label: Text(_isUploading ? 'Uploading...' : 'Upload'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed:
+                          _isUploading ? null : _uploadPhotoAndAnnotation,
                     ),
                   ],
                 ),

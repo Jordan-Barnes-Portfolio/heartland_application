@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "355200257738",
+    "project_id": "heartland-161d6",
+    "storage_bucket": "heartland-161d6.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:355200257738:android:6f959511e3bd9aaa6dee33",
+        "android_client_info": {
+          "package_name": "com.example.heartlandpartners"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAv1QGUkTOfsMqVVcSDvw8LfSI8Jqzkos8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:355200257738:android:24797d29bb8921236dee33",
+        "android_client_info": {
+          "package_name": "com.heartland.partnerapplication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAv1QGUkTOfsMqVVcSDvw8LfSI8Jqzkos8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
