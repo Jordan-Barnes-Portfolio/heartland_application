@@ -33,6 +33,8 @@ target 'Runner' do
   use_frameworks! :linkage => :static
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  # Add this line
+  pod 'url_launcher_ios', :path => '.symlinks/plugins/url_launcher_ios/ios'
   target 'RunnerTests' do
     inherit! :search_paths
   end
