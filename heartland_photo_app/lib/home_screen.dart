@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:heartland_photo_app/annotation_screen.dart';
+import 'package:heartland_photo_app/loc_track_screen.dart';
 import 'photo_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
-  final List<CameraDescription> cameras;
-
-  const HomeScreen({Key? key, required this.cameras}) : super(key: key);
+  const HomeScreen({Key? key}) : super(key: key);
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -18,18 +17,32 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedFolder = '';
   List<String> _folders = [];
   late ScrollController _scrollController;
+  List<CameraDescription> _cameras = [];
+  bool _camerasInitialized = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _loadFolders();
+    _initializeCameras();
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _initializeCameras() async {
+    try {
+      _cameras = await availableCameras();
+      setState(() {
+        _camerasInitialized = true;
+      });
+    } on CameraException catch (e) {
+      print('Error initializing cameras: $e');
+    }
   }
 
   Future<void> _loadFolders() async {
@@ -153,6 +166,15 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             ListTile(
+              leading: const Icon(Icons.location_city),
+              title: const Text('Job tracking'),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) {
+                  return LocationTrackingPage();
+                }));
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.folder),
               title: const Text('Manage/View Folders'),
               onTap: () async {
@@ -236,14 +258,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(30),
                       ),
                     ),
-                    onPressed: _selectedFolder.isEmpty
+                    onPressed: (_selectedFolder.isEmpty || !_camerasInitialized)
                         ? null
                         : () async {
                             final imagePath = await Navigator.push<String>(
                               context,
                               MaterialPageRoute(
                                 builder: (context) =>
-                                    PhotoScreen(camera: widget.cameras.first),
+                                    PhotoScreen(camera: _cameras.first),
                               ),
                             );
                             if (imagePath != null) {
@@ -253,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   builder: (context) => AnnotationScreen(
                                     imagePath: imagePath,
                                     folder: _selectedFolder,
-                                    cameras: widget.cameras,
+                                    cameras: _cameras,
                                   ),
                                 ),
                               );

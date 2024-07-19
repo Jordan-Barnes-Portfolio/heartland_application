@@ -232,7 +232,7 @@ class _AnnotationScreenState extends State<AnnotationScreen>
               // Navigate back to HomeScreen
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(
-                  builder: (context) => HomeScreen(cameras: widget.cameras),
+                  builder: (context) => HomeScreen(),
                 ),
                 (Route<dynamic> route) => false,
               );
@@ -263,7 +263,8 @@ class _AnnotationScreenState extends State<AnnotationScreen>
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(20)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.grey.withOpacity(0.3),
@@ -312,8 +313,8 @@ class _AnnotationScreenState extends State<AnnotationScreen>
                     const SizedBox(height: 16),
                     Text(
                       'Folder: ${widget.folder}',
-                      style:
-                          const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(

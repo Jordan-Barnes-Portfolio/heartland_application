@@ -37,22 +37,22 @@ class _PhotoScreenState extends State<PhotoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          title: const Text('Annotate Image'),
-          backgroundColor: Colors.white,
-          elevation: 0,
-          leading: IconButton(
-              icon: const Icon(Icons.home),
-              onPressed: () {
-                // Navigate back to HomeScreen
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(
-                    builder: (context) => HomeScreen(cameras: [widget.camera]),
-                  ),
-                  (Route<dynamic> route) => false,
-                );
-              },
-            ),
+        title: const Text('Annotate Image'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.home),
+          onPressed: () {
+            // Navigate back to HomeScreen
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (context) => HomeScreen(),
+              ),
+              (Route<dynamic> route) => false,
+            );
+          },
         ),
+      ),
       body: FutureBuilder<void>(
         future: _initializeControllerFuture,
         builder: (context, snapshot) {

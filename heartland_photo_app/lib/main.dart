@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
 import 'package:heartland_photo_app/firebase_options.dart';
 import 'home_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -10,8 +9,7 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    final cameras = await availableCameras();
-    runApp(MyApp(cameras: cameras));
+    runApp(MyApp());
   } catch (e, stackTrace) {
     print('Error in main: $e');
     print('Stack trace: $stackTrace');
@@ -20,9 +18,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  final List<CameraDescription> cameras;
-
-  const MyApp({Key? key, required this.cameras}) : super(key: key);
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +27,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: HomeScreen(cameras: cameras),
+      home: HomeScreen(),
     );
   }
 }
