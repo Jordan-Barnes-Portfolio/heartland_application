@@ -14,8 +14,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _selectedFolder = '';
-  List<String> _folders = [];
+  String _selectedMainFolder = '';
+  String _selectedSubFolder = '';
+  List<String> _mainFolders = [];
+  List<String> _subFolders = [
+    'Initial Assessment',
+    'Stabilization',
+    'Mitigation',
+    'Restoration'
+  ];
   late ScrollController _scrollController;
   List<CameraDescription> _cameras = [];
   bool _camerasInitialized = false;
@@ -24,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _loadFolders();
+    _loadMainFolders();
     _initializeCameras();
   }
 
@@ -45,45 +52,46 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadFolders() async {
+  Future<void> _loadMainFolders() async {
     try {
       final foldersSnapshot =
           await FirebaseFirestore.instance.collection('folders').get();
       setState(() {
-        _folders = foldersSnapshot.docs.map((doc) => doc.id).toList();
+        _mainFolders = foldersSnapshot.docs.map((doc) => doc.id).toList();
       });
     } catch (e) {
       print('Error loading folders: $e');
-      // Optionally show an error message to the user
     }
   }
 
   Future<void> _refreshFolders() async {
-    await _loadFolders();
+    await _loadMainFolders();
   }
 
-  Future<void> _selectOrCreateFolder() async {
+  Future<void> _selectOrCreateMainFolder() async {
     String? result = await showDialog<String>(
       context: context,
       builder: (BuildContext context) {
         String newFolder = '';
         return AlertDialog(
-          title: const Text('Select or Create Folder'),
+          title: const Text('Select or Create Main Folder'),
           content: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) {
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButton<String>(
-                    value: _selectedFolder.isNotEmpty ? _selectedFolder : null,
-                    hint: const Text('Select a folder'),
+                    value: _selectedMainFolder.isNotEmpty
+                        ? _selectedMainFolder
+                        : null,
+                    hint: const Text('Select a main folder'),
                     onChanged: (String? newValue) {
                       setState(() {
-                        _selectedFolder = newValue!;
+                        _selectedMainFolder = newValue!;
                       });
                     },
-                    items:
-                        _folders.map<DropdownMenuItem<String>>((String value) {
+                    items: _mainFolders
+                        .map<DropdownMenuItem<String>>((String value) {
                       return DropdownMenuItem<String>(
                         value: value,
                         child: Text(value),
@@ -92,7 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   TextField(
                     decoration: const InputDecoration(
-                        labelText: 'Or create a new folder'),
+                        labelText: 'Or create a new main folder'),
                     onChanged: (value) {
                       newFolder = value;
                     },
@@ -111,8 +119,8 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               child: const Text('OK'),
               onPressed: () {
-                Navigator.of(context)
-                    .pop(newFolder.isNotEmpty ? newFolder : _selectedFolder);
+                Navigator.of(context).pop(
+                    newFolder.isNotEmpty ? newFolder : _selectedMainFolder);
               },
             ),
           ],
@@ -122,17 +130,52 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (result != null && result.isNotEmpty) {
       setState(() {
-        _selectedFolder = result;
+        _selectedMainFolder = result;
+        _selectedSubFolder = ''; // Reset sub-folder selection
       });
-      if (!_folders.contains(result)) {
-        // Create new folder with name field
+      if (!_mainFolders.contains(result)) {
+        // Create new main folder with sub-folders
         await FirebaseFirestore.instance.collection('folders').doc(result).set({
           'name': result,
-          'photoDescriptions': {},
-          'photos': [],
+          'subFolders': {
+            'Initial Assessment': {'photoDescriptions': {}, 'photos': []},
+            'Stabilization': {'photoDescriptions': {}, 'photos': []},
+            'Mitigation': {'photoDescriptions': {}, 'photos': []},
+            'Restoration': {'photoDescriptions': {}, 'photos': []},
+          },
         });
-        _loadFolders();
+        _loadMainFolders();
       }
+    }
+  }
+
+  Future<void> _selectSubFolder() async {
+    String? result = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Sub-Folder'),
+          content: DropdownButton<String>(
+            value: _selectedSubFolder.isNotEmpty ? _selectedSubFolder : null,
+            hint: const Text('Select a sub-folder'),
+            onChanged: (String? newValue) {
+              Navigator.of(context).pop(newValue);
+            },
+            items: _subFolders.map<DropdownMenuItem<String>>((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        _selectedSubFolder = result;
+      });
     }
   }
 
@@ -224,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Select a folder and take a photo',
+                    'Select a main folder and sub-folder, then take a photo',
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.white70,
@@ -233,9 +276,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 48),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.folder),
-                    label: Text(_selectedFolder.isEmpty
-                        ? 'Select Folder'
-                        : 'Folder: $_selectedFolder'),
+                    label: Text(_selectedMainFolder.isEmpty
+                        ? 'Select Main Folder'
+                        : 'Main Folder: $_selectedMainFolder'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
                       padding: const EdgeInsets.symmetric(
@@ -244,7 +287,24 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(30),
                       ),
                     ),
-                    onPressed: _selectOrCreateFolder,
+                    onPressed: _selectOrCreateMainFolder,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.subdirectory_arrow_left),
+                    label: Text(_selectedSubFolder.isEmpty
+                        ? 'Select Sub-Folder'
+                        : 'Sub-Folder: $_selectedSubFolder'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    onPressed:
+                        _selectedMainFolder.isEmpty ? null : _selectSubFolder,
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
@@ -258,7 +318,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(30),
                       ),
                     ),
-                    onPressed: (_selectedFolder.isEmpty || !_camerasInitialized)
+                    onPressed: (_selectedMainFolder.isEmpty ||
+                            _selectedSubFolder.isEmpty ||
+                            !_camerasInitialized)
                         ? null
                         : () async {
                             final imagePath = await Navigator.push<String>(
@@ -274,7 +336,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 MaterialPageRoute(
                                   builder: (context) => AnnotationScreen(
                                     imagePath: imagePath,
-                                    folder: _selectedFolder,
+                                    mainFolder: _selectedMainFolder,
+                                    subFolder: _selectedSubFolder,
                                     cameras: _cameras,
                                   ),
                                 ),

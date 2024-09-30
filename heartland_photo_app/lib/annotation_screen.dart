@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:heartland_photo_app/home_screen.dart';
@@ -12,13 +10,15 @@ import 'package:uuid/uuid.dart';
 
 class AnnotationScreen extends StatefulWidget {
   final String imagePath;
-  final String folder;
+  final String mainFolder;
+  final String subFolder;
   final List<CameraDescription> cameras;
 
   const AnnotationScreen({
     Key? key,
     required this.imagePath,
-    required this.folder,
+    required this.mainFolder,
+    required this.subFolder,
     required this.cameras,
   }) : super(key: key);
 
@@ -126,7 +126,8 @@ class _AnnotationScreenState extends State<AnnotationScreen>
     try {
       final String uniqueId = const Uuid().v4();
       final String fileName = '$uniqueId.jpg';
-      final String storagePath = '${widget.folder}/$fileName';
+      final String storagePath =
+          '${widget.mainFolder}/${widget.subFolder}/$fileName';
 
       // Upload the image to Firebase Storage
       final Reference storageRef =
@@ -135,44 +136,43 @@ class _AnnotationScreenState extends State<AnnotationScreen>
       final String imageUrl = await storageRef.getDownloadURL();
 
       // Update Firestore
-      final DocumentReference folderRef =
-          FirebaseFirestore.instance.collection('folders').doc(widget.folder);
+      final DocumentReference folderRef = FirebaseFirestore.instance
+          .collection('folders')
+          .doc(widget.mainFolder);
 
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         DocumentSnapshot folderSnapshot = await transaction.get(folderRef);
 
         if (!folderSnapshot.exists) {
-          // If the folder document doesn't exist, create it with all fields
-          transaction.set(folderRef, {
-            'name': widget.folder,
-            'photoDescriptions': {imageUrl: _textController.text},
-            'photos': [imageUrl],
-          });
-        } else {
-          // If the folder document exists, update it
-          Map<String, dynamic> data =
-              folderSnapshot.data() as Map<String, dynamic>;
-
-          // Ensure 'name' field exists
-          if (!data.containsKey('name')) {
-            data['name'] = widget.folder;
-          }
-
-          // Update photoDescriptions
-          Map<String, dynamic> photoDescriptions =
-              Map<String, dynamic>.from(data['photoDescriptions'] ?? {});
-          photoDescriptions[imageUrl] = _textController.text;
-
-          // Update photos array
-          List<dynamic> photos = List<dynamic>.from(data['photos'] ?? []);
-          photos.add(imageUrl);
-
-          transaction.update(folderRef, {
-            'name': data['name'],
-            'photoDescriptions': photoDescriptions,
-            'photos': photos,
-          });
+          throw Exception('Main folder does not exist');
         }
+
+        Map<String, dynamic> data =
+            folderSnapshot.data() as Map<String, dynamic>;
+        Map<String, dynamic> subFolders =
+            Map<String, dynamic>.from(data['subFolders'] ?? {});
+
+        if (!subFolders.containsKey(widget.subFolder)) {
+          throw Exception('Sub-folder does not exist');
+        }
+
+        Map<String, dynamic> subFolderData =
+            Map<String, dynamic>.from(subFolders[widget.subFolder]);
+        Map<String, dynamic> photoDescriptions =
+            Map<String, dynamic>.from(subFolderData['photoDescriptions'] ?? {});
+        List<dynamic> photos =
+            List<dynamic>.from(subFolderData['photos'] ?? []);
+
+        photoDescriptions[imageUrl] = _textController.text;
+        photos.add(imageUrl);
+
+        subFolders[widget.subFolder] = {
+          ...subFolderData,
+          'photoDescriptions': photoDescriptions,
+          'photos': photos,
+        };
+
+        transaction.update(folderRef, {'subFolders': subFolders});
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -194,7 +194,8 @@ class _AnnotationScreenState extends State<AnnotationScreen>
           MaterialPageRoute(
             builder: (context) => AnnotationScreen(
               imagePath: imagePath,
-              folder: widget.folder,
+              mainFolder: widget.mainFolder,
+              subFolder: widget.subFolder,
               cameras: widget.cameras,
             ),
           ),
@@ -312,7 +313,7 @@ class _AnnotationScreenState extends State<AnnotationScreen>
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Folder: ${widget.folder}',
+                      'Main Folder: ${widget.mainFolder}\nSub-Folder: ${widget.subFolder}',
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.bold),
                     ),
