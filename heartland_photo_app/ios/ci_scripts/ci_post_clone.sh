@@ -7,7 +7,7 @@ pwd
 echo "installing flutter"
 
 #Install Flutter using git.
-git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
+git clone https://github.com/flutter/flutter.git --depth 1 -b '3.22.3' $HOME/flutter
 export PATH="$PATH:$HOME/flutter/bin"
 
 #Install Flutter artifacts for iOS (--ios), or macOS (--macos) platforms.
