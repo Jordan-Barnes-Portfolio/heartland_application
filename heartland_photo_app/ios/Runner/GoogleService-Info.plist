@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyAHEHqyPx5hGR4MJZMGZDE4pRacs7t953Y</string>
+	<string>AIzaSyBZgMk9nFpycWewgYaiEH22zdgKjroKKW8</string>
 	<key>GCM_SENDER_ID</key>
-	<string>355200257738</string>
+	<string>1040619375181</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.heartland.partnerapplication</string>
+	<string>com.heartland.app</string>
 	<key>PROJECT_ID</key>
-	<string>heartland-161d6</string>
+	<string>heartland-restoration</string>
 	<key>STORAGE_BUCKET</key>
-	<string>heartland-161d6.appspot.com</string>
+	<string>heartland-restoration.appspot.com</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,8 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:355200257738:ios:d4ec1c110035eb406dee33</string>
+	<string>1:1040619375181:ios:593d305115b9259a3b2a04</string>
+	<key>DATABASE_URL</key>
+	<string>https://heartland-restoration-default-rtdb.firebaseio.com</string>
 </dict>
 </plist>

@@ -59,10 +59,10 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBZgMk9nFpycWewgYaiEH22zdgKjroKKW8',
-    appId: '1:1040619375181:ios:f19c17455deec16c3b2a04',
+    appId: '1:1040619375181:ios:593d305115b9259a3b2a04',
     messagingSenderId: '1040619375181',
     projectId: 'heartland-restoration',
     storageBucket: 'heartland-restoration.appspot.com',
-    iosBundleId: 'com.heartland.partnerapplication',
+    iosBundleId: 'com.heartland.app',
   );
 }
