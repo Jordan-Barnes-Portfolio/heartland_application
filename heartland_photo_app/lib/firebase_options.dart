@@ -17,7 +17,10 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      return web;
+      throw UnsupportedError(
+        'DefaultFirebaseOptions have not been configured for web - '
+        'you can reconfigure this by running the FlutterFire CLI again.',
+      );
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -25,9 +28,15 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        return macos;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for macos - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.windows:
-        return windows;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for windows - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -40,47 +49,20 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBuhW8ub-MJPnPZDERrFLiGhK2SrbXW0U0',
-    appId: '1:355200257738:web:43e2b65636d247506dee33',
-    messagingSenderId: '355200257738',
-    projectId: 'heartland-161d6',
-    authDomain: 'heartland-161d6.firebaseapp.com',
-    storageBucket: 'heartland-161d6.appspot.com',
-  );
-
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAv1QGUkTOfsMqVVcSDvw8LfSI8Jqzkos8',
-    appId: '1:355200257738:android:24797d29bb8921236dee33',
-    messagingSenderId: '355200257738',
-    projectId: 'heartland-161d6',
-    storageBucket: 'heartland-161d6.appspot.com',
+    apiKey: 'AIzaSyDsMopOKt1iYTca65bbd_Rcm6lS-WeaSgs',
+    appId: '1:1040619375181:android:766a165860055fa93b2a04',
+    messagingSenderId: '1040619375181',
+    projectId: 'heartland-restoration',
+    storageBucket: 'heartland-restoration.appspot.com',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAHEHqyPx5hGR4MJZMGZDE4pRacs7t953Y',
-    appId: '1:355200257738:ios:4fb547c1e25b89566dee33',
-    messagingSenderId: '355200257738',
-    projectId: 'heartland-161d6',
-    storageBucket: 'heartland-161d6.appspot.com',
-    iosBundleId: 'com.example.heartlandPhotoApp',
-  );
-
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyAHEHqyPx5hGR4MJZMGZDE4pRacs7t953Y',
-    appId: '1:355200257738:ios:4fb547c1e25b89566dee33',
-    messagingSenderId: '355200257738',
-    projectId: 'heartland-161d6',
-    storageBucket: 'heartland-161d6.appspot.com',
-    iosBundleId: 'com.example.heartlandPhotoApp',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBuhW8ub-MJPnPZDERrFLiGhK2SrbXW0U0',
-    appId: '1:355200257738:web:abe17244199947eb6dee33',
-    messagingSenderId: '355200257738',
-    projectId: 'heartland-161d6',
-    authDomain: 'heartland-161d6.firebaseapp.com',
-    storageBucket: 'heartland-161d6.appspot.com',
+    apiKey: 'AIzaSyBZgMk9nFpycWewgYaiEH22zdgKjroKKW8',
+    appId: '1:1040619375181:ios:f19c17455deec16c3b2a04',
+    messagingSenderId: '1040619375181',
+    projectId: 'heartland-restoration',
+    storageBucket: 'heartland-restoration.appspot.com',
+    iosBundleId: 'com.heartland.partnerapplication',
   );
 }
