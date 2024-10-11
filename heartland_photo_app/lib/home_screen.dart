@@ -230,6 +230,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.folder),
+              title: const Text('Triage Projects/Referrals'),
+              onTap: () async {
+                final Uri uri =
+                    Uri.parse('https://heartland-data-utils.vercel.app');
+                if (await canLaunch(uri.toString())) {
+                  await launch(uri.toString());
+                } else {
+                  throw 'Could not launch $uri';
+                }
+              },
+            ),
           ],
         ),
       ),
