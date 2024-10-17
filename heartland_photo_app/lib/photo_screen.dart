@@ -1,10 +1,9 @@
-// ignore_for_file: library_private_types_in_public_api, sort_child_properties_last
-
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:heartland_photo_app/home_screen.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'dart:io';
 
 class PhotoScreen extends StatefulWidget {
   final CameraDescription camera;
@@ -18,6 +17,7 @@ class PhotoScreen extends StatefulWidget {
 class _PhotoScreenState extends State<PhotoScreen> {
   late CameraController _controller;
   late Future<void> _initializeControllerFuture;
+  String? _capturedImagePath;
 
   @override
   void initState() {
@@ -29,8 +29,29 @@ class _PhotoScreenState extends State<PhotoScreen> {
   @override
   void dispose() {
     _controller.dispose();
-    _initializeControllerFuture = _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _takePicture() async {
+    try {
+      await _initializeControllerFuture;
+      final image = await _controller.takePicture();
+      final directory = await getApplicationDocumentsDirectory();
+      final imagePath = path.join(directory.path, '${DateTime.now()}.png');
+      await image.saveTo(imagePath);
+
+      setState(() {
+        _capturedImagePath = imagePath;
+      });
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  void _retakePicture() {
+    setState(() {
+      _capturedImagePath = null;
+    });
   }
 
   @override
@@ -43,7 +64,6 @@ class _PhotoScreenState extends State<PhotoScreen> {
         leading: IconButton(
           icon: const Icon(Icons.home),
           onPressed: () {
-            // Navigate back to HomeScreen
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(
                 builder: (context) => HomeScreen(),
@@ -59,7 +79,9 @@ class _PhotoScreenState extends State<PhotoScreen> {
           if (snapshot.connectionState == ConnectionState.done) {
             return Stack(
               children: [
-                CameraPreview(_controller),
+                _capturedImagePath == null
+                    ? CameraPreview(_controller)
+                    : Image.file(File(_capturedImagePath!), fit: BoxFit.cover),
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -67,9 +89,11 @@ class _PhotoScreenState extends State<PhotoScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     color: Colors.black54,
-                    child: const Text(
-                      'Tap the camera button to take a photo',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    child: Text(
+                      _capturedImagePath == null
+                          ? 'Tap the camera button to take a photo'
+                          : 'Tap use to proceed or retake for a new photo',
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -81,25 +105,31 @@ class _PhotoScreenState extends State<PhotoScreen> {
           }
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.camera_alt),
-        backgroundColor: Colors.blueGrey[800],
-        onPressed: () async {
-          try {
-            await _initializeControllerFuture;
-            final image = await _controller.takePicture();
-            final directory = await getApplicationDocumentsDirectory();
-            final imagePath =
-                path.join(directory.path, '${DateTime.now()}.png');
-            await image.saveTo(imagePath);
-            await Future.delayed(const Duration(seconds: 1));
-
-            if (!context.mounted) return;
-            Navigator.of(context).pop(imagePath);
-          } catch (e) {
-            print(e);
-          }
-        },
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (_capturedImagePath == null)
+            FloatingActionButton(
+              child: const Icon(Icons.camera_alt),
+              backgroundColor: Colors.blueGrey[800],
+              onPressed: _takePicture,
+            )
+          else ...[
+            FloatingActionButton(
+              child: const Icon(Icons.check),
+              backgroundColor: Colors.green,
+              onPressed: () {
+                Navigator.of(context).pop(_capturedImagePath);
+              },
+            ),
+            const SizedBox(width: 16),
+            FloatingActionButton(
+              child: const Icon(Icons.replay),
+              backgroundColor: Colors.red,
+              onPressed: _retakePicture,
+            ),
+          ],
+        ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );

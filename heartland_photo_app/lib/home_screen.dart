@@ -3,6 +3,7 @@ import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:heartland_photo_app/annotation_screen.dart';
 import 'package:heartland_photo_app/loc_track_screen.dart';
+import 'package:image_picker/image_picker.dart';
 import 'photo_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -41,6 +42,33 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    if (_selectedMainFolder.isEmpty || _selectedSubFolder.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please select a main folder and sub-folder first')),
+      );
+      return;
+    }
+
+    final ImagePicker _picker = ImagePicker();
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AnnotationScreen(
+            imagePath: image.path,
+            mainFolder: _selectedMainFolder,
+            subFolder: _selectedSubFolder,
+            cameras: _cameras,
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _initializeCameras() async {
     try {
       _cameras = await availableCameras();
@@ -74,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (BuildContext context) {
         String newFolder = '';
         return AlertDialog(
-          title: const Text('Select or Create Main Folder'),
+          title: const Text('Select Main Folder'),
           content: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) {
               return Column(
@@ -98,13 +126,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     }).toList(),
                   ),
-                  TextField(
-                    decoration: const InputDecoration(
-                        labelText: 'Or create a new main folder'),
-                    onChanged: (value) {
-                      newFolder = value;
-                    },
-                  ),
+                  // TextField(
+                  //   decoration: const InputDecoration(
+                  //       labelText: 'Or create a new main folder'),
+                  //   onChanged: (value) {
+                  //     newFolder = value;
+                  //   },
+                  // ),
                 ],
               );
             },
@@ -279,11 +307,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Select a main folder and sub-folder, then take a photo',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white70,
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'Select a main folder and sub-folder to begin',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                   const SizedBox(height: 48),
@@ -320,43 +352,65 @@ class _HomeScreenState extends State<HomeScreen> {
                         _selectedMainFolder.isEmpty ? null : _selectSubFolder,
                   ),
                   const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.camera),
-                    label: const Text('Take Photo'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    onPressed: (_selectedMainFolder.isEmpty ||
-                            _selectedSubFolder.isEmpty ||
-                            !_camerasInitialized)
-                        ? null
-                        : () async {
-                            final imagePath = await Navigator.push<String>(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    PhotoScreen(camera: _cameras.first),
-                              ),
-                            );
-                            if (imagePath != null) {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => AnnotationScreen(
-                                    imagePath: imagePath,
-                                    mainFolder: _selectedMainFolder,
-                                    subFolder: _selectedSubFolder,
-                                    cameras: _cameras,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.camera),
+                        label: const Text('Take Photo'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        onPressed: (_selectedMainFolder.isEmpty ||
+                                _selectedSubFolder.isEmpty ||
+                                !_camerasInitialized)
+                            ? null
+                            : () async {
+                                final imagePath = await Navigator.push<String>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        PhotoScreen(camera: _cameras.first),
                                   ),
-                                ),
-                              );
-                            }
-                          },
+                                );
+                                if (imagePath != null) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => AnnotationScreen(
+                                        imagePath: imagePath,
+                                        mainFolder: _selectedMainFolder,
+                                        subFolder: _selectedSubFolder,
+                                        cameras: _cameras,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.photo_library),
+                        label: const Text('Upload Photo'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        onPressed: (_selectedMainFolder.isEmpty ||
+                                _selectedSubFolder.isEmpty)
+                            ? null
+                            : _pickImage,
+                      ),
+                    ],
                   ),
                 ],
               ),
