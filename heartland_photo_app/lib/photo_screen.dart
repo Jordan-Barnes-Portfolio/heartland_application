@@ -110,12 +110,14 @@ class _PhotoScreenState extends State<PhotoScreen> {
         children: [
           if (_capturedImagePath == null)
             FloatingActionButton(
+              heroTag: 'take_picture',
               child: const Icon(Icons.camera_alt),
               backgroundColor: Colors.blueGrey[800],
               onPressed: _takePicture,
             )
           else ...[
             FloatingActionButton(
+              heroTag: 'use_picture',
               child: const Icon(Icons.check),
               backgroundColor: Colors.green,
               onPressed: () {
@@ -124,6 +126,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
             ),
             const SizedBox(width: 16),
             FloatingActionButton(
+              heroTag: 'retake_picture',
               child: const Icon(Icons.replay),
               backgroundColor: Colors.red,
               onPressed: _retakePicture,

@@ -112,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     value: _selectedMainFolder.isNotEmpty
                         ? _selectedMainFolder
                         : null,
-                    hint: const Text('Select a main folder'),
+                    hint: const Text('Select a folder'),
                     onChanged: (String? newValue) {
                       setState(() {
                         _selectedMainFolder = newValue!;
@@ -122,9 +122,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         .map<DropdownMenuItem<String>>((String value) {
                       return DropdownMenuItem<String>(
                         value: value,
-                        child: Text(value),
+                        child: Text(
+                          value,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
                     }).toList(),
+                    isExpanded:
+                        true, // This ensures the dropdown takes full width
                   ),
                   // TextField(
                   //   decoration: const InputDecoration(
@@ -308,7 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    padding: EdgeInsets.symmetric(horizontal: 8),
                     child: Text(
                       'Select a main folder and sub-folder to begin',
                       style: TextStyle(
@@ -318,7 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 36),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.folder),
                     label: Text(_selectedMainFolder.isEmpty
