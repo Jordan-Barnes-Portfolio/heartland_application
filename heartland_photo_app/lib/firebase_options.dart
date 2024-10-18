@@ -63,6 +63,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1040619375181',
     projectId: 'heartland-restoration',
     storageBucket: 'heartland-restoration.appspot.com',
-    iosBundleId: 'com.heartland.application',
+    iosBundleId: 'com.example.heartlandPhotoApp',
   );
 }
