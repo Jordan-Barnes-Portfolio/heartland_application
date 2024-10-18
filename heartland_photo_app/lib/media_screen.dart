@@ -4,20 +4,25 @@ import 'package:heartland_photo_app/home_screen.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'dart:io';
+import 'package:video_player/video_player.dart';
 
-class PhotoScreen extends StatefulWidget {
+class MediaScreen extends StatefulWidget {
   final CameraDescription camera;
+  final bool isVideo;
 
-  const PhotoScreen({Key? key, required this.camera}) : super(key: key);
+  const MediaScreen({Key? key, required this.camera, required this.isVideo})
+      : super(key: key);
 
   @override
-  _PhotoScreenState createState() => _PhotoScreenState();
+  _MediaScreenState createState() => _MediaScreenState();
 }
 
-class _PhotoScreenState extends State<PhotoScreen> {
+class _MediaScreenState extends State<MediaScreen> {
   late CameraController _controller;
   late Future<void> _initializeControllerFuture;
-  String? _capturedImagePath;
+  String? _capturedMediaPath;
+  bool _isRecording = false;
+  VideoPlayerController? _videoPlayerController;
 
   @override
   void initState() {
@@ -29,10 +34,11 @@ class _PhotoScreenState extends State<PhotoScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _videoPlayerController?.dispose();
     super.dispose();
   }
 
-  Future<void> _takePicture() async {
+  Future<void> _capturePhoto() async {
     try {
       await _initializeControllerFuture;
       final image = await _controller.takePicture();
@@ -41,16 +47,46 @@ class _PhotoScreenState extends State<PhotoScreen> {
       await image.saveTo(imagePath);
 
       setState(() {
-        _capturedImagePath = imagePath;
+        _capturedMediaPath = imagePath;
       });
     } catch (e) {
       print(e);
     }
   }
 
-  void _retakePicture() {
+  Future<void> _captureVideo() async {
+    if (_isRecording) {
+      final file = await _controller.stopVideoRecording();
+      setState(() {
+        _isRecording = false;
+        _capturedMediaPath = file.path;
+      });
+
+      _videoPlayerController =
+          VideoPlayerController.file(File(_capturedMediaPath!))
+            ..initialize().then((_) {
+              setState(() {});
+              _videoPlayerController!.play();
+            });
+    } else {
+      try {
+        await _initializeControllerFuture;
+        await _controller.startVideoRecording();
+        setState(() {
+          _isRecording = true;
+        });
+      } catch (e) {
+        print(e);
+      }
+    }
+  }
+
+  void _retakeMedia() {
     setState(() {
-      _capturedImagePath = null;
+      _capturedMediaPath = null;
+      _isRecording = false;
+      _videoPlayerController?.dispose();
+      _videoPlayerController = null;
     });
   }
 
@@ -58,7 +94,7 @@ class _PhotoScreenState extends State<PhotoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Annotate Image'),
+        title: Text(widget.isVideo ? 'Capture Video' : 'Capture Photo'),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -79,9 +115,15 @@ class _PhotoScreenState extends State<PhotoScreen> {
           if (snapshot.connectionState == ConnectionState.done) {
             return Stack(
               children: [
-                _capturedImagePath == null
-                    ? CameraPreview(_controller)
-                    : Image.file(File(_capturedImagePath!), fit: BoxFit.cover),
+                if (_capturedMediaPath == null)
+                  CameraPreview(_controller)
+                else if (widget.isVideo && _videoPlayerController != null)
+                  AspectRatio(
+                    aspectRatio: _videoPlayerController!.value.aspectRatio,
+                    child: VideoPlayer(_videoPlayerController!),
+                  )
+                else if (!widget.isVideo)
+                  Image.file(File(_capturedMediaPath!), fit: BoxFit.cover),
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -90,9 +132,11 @@ class _PhotoScreenState extends State<PhotoScreen> {
                     padding: const EdgeInsets.all(16),
                     color: Colors.black54,
                     child: Text(
-                      _capturedImagePath == null
-                          ? 'Tap the camera button to take a photo'
-                          : 'Tap use to proceed or retake for a new photo',
+                      _capturedMediaPath == null
+                          ? widget.isVideo
+                              ? 'Tap the camera button to start/stop recording'
+                              : 'Tap the camera button to take a photo'
+                          : 'Tap use to proceed or retake for a new ${widget.isVideo ? 'video' : 'photo'}',
                       style: const TextStyle(color: Colors.white, fontSize: 16),
                       textAlign: TextAlign.center,
                     ),
@@ -108,28 +152,30 @@ class _PhotoScreenState extends State<PhotoScreen> {
       floatingActionButton: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (_capturedImagePath == null)
+          if (_capturedMediaPath == null)
             FloatingActionButton(
-              heroTag: 'take_picture',
-              child: const Icon(Icons.camera_alt),
-              backgroundColor: Colors.blueGrey[800],
-              onPressed: _takePicture,
+              heroTag: widget.isVideo ? 'capture_video' : 'capture_photo',
+              child: Icon(widget.isVideo
+                  ? (_isRecording ? Icons.stop : Icons.videocam)
+                  : Icons.camera_alt),
+              backgroundColor: _isRecording ? Colors.red : Colors.blueGrey[800],
+              onPressed: widget.isVideo ? _captureVideo : _capturePhoto,
             )
           else ...[
             FloatingActionButton(
-              heroTag: 'use_picture',
+              heroTag: 'use_media',
               child: const Icon(Icons.check),
               backgroundColor: Colors.green,
               onPressed: () {
-                Navigator.of(context).pop(_capturedImagePath);
+                Navigator.of(context).pop(_capturedMediaPath);
               },
             ),
             const SizedBox(width: 16),
             FloatingActionButton(
-              heroTag: 'retake_picture',
+              heroTag: 'retake_media',
               child: const Icon(Icons.replay),
               backgroundColor: Colors.red,
-              onPressed: _retakePicture,
+              onPressed: _retakeMedia,
             ),
           ],
         ],

@@ -5,7 +5,7 @@ import 'package:heartland_photo_app/annotation_screen.dart';
 import 'package:heartland_photo_app/claimsready_screen.dart';
 import 'package:heartland_photo_app/loc_track_screen.dart';
 import 'package:image_picker/image_picker.dart';
-import 'photo_screen.dart';
+import 'media_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -41,33 +41,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickImage() async {
-    if (_selectedMainFolder.isEmpty || _selectedSubFolder.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please select a main folder and sub-folder first')),
-      );
-      return;
-    }
-
-    final ImagePicker _picker = ImagePicker();
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-
-    if (image != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AnnotationScreen(
-            imagePath: image.path,
-            mainFolder: _selectedMainFolder,
-            subFolder: _selectedSubFolder,
-            cameras: _cameras,
-          ),
-        ),
-      );
-    }
   }
 
   Future<void> _initializeCameras() async {
@@ -129,16 +102,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       );
                     }).toList(),
-                    isExpanded:
-                        true, // This ensures the dropdown takes full width
+                    isExpanded: true,
                   ),
-                  // TextField(
-                  //   decoration: const InputDecoration(
-                  //       labelText: 'Or create a new main folder'),
-                  //   onChanged: (value) {
-                  //     newFolder = value;
-                  //   },
-                  // ),
                 ],
               );
             },
@@ -165,10 +130,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (result != null && result.isNotEmpty) {
       setState(() {
         _selectedMainFolder = result;
-        _selectedSubFolder = ''; // Reset sub-folder selection
+        _selectedSubFolder = '';
       });
       if (!_mainFolders.contains(result)) {
-        // Create new main folder with sub-folders
         await FirebaseFirestore.instance.collection('folders').doc(result).set({
           'name': result,
           'subFolders': {
@@ -210,6 +174,76 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _selectedSubFolder = result;
       });
+    }
+  }
+
+  Future<void> _captureMedia(bool isVideo) async {
+    if (_selectedMainFolder.isEmpty || _selectedSubFolder.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please select a main folder and sub-folder first')),
+      );
+      return;
+    }
+
+    if (!_camerasInitialized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Camera is not initialized')),
+      );
+      return;
+    }
+
+    final mediaPath = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            MediaScreen(camera: _cameras.first, isVideo: isVideo),
+      ),
+    );
+
+    if (mediaPath != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AnnotationScreen(
+            mediaPath: mediaPath,
+            mainFolder: _selectedMainFolder,
+            subFolder: _selectedSubFolder,
+            cameras: _cameras,
+            isVideo: isVideo,
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickMedia(bool isVideo) async {
+    if (_selectedMainFolder.isEmpty || _selectedSubFolder.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please select a main folder and sub-folder first')),
+      );
+      return;
+    }
+
+    final ImagePicker _picker = ImagePicker();
+    final XFile? media = isVideo
+        ? await _picker.pickVideo(source: ImageSource.gallery)
+        : await _picker.pickImage(source: ImageSource.gallery);
+
+    if (media != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AnnotationScreen(
+            mediaPath: media.path,
+            mainFolder: _selectedMainFolder,
+            subFolder: _selectedSubFolder,
+            cameras: _cameras,
+            isVideo: isVideo,
+          ),
+        ),
+      );
     }
   }
 
@@ -375,7 +409,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       ElevatedButton.icon(
-                        icon: const Icon(Icons.camera),
+                        icon: const Icon(Icons.camera_alt),
                         label: const Text('Take Photo'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
@@ -389,30 +423,32 @@ class _HomeScreenState extends State<HomeScreen> {
                                 _selectedSubFolder.isEmpty ||
                                 !_camerasInitialized)
                             ? null
-                            : () async {
-                                final imagePath = await Navigator.push<String>(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        PhotoScreen(camera: _cameras.first),
-                                  ),
-                                );
-                                if (imagePath != null) {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => AnnotationScreen(
-                                        imagePath: imagePath,
-                                        mainFolder: _selectedMainFolder,
-                                        subFolder: _selectedSubFolder,
-                                        cameras: _cameras,
-                                      ),
-                                    ),
-                                  );
-                                }
-                              },
+                            : () => _captureMedia(false),
                       ),
                       const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.videocam),
+                        label: const Text('Take Video'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        onPressed: (_selectedMainFolder.isEmpty ||
+                                _selectedSubFolder.isEmpty ||
+                                !_camerasInitialized)
+                            ? null
+                            : () => _captureMedia(true),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                       ElevatedButton.icon(
                         icon: const Icon(Icons.photo_library),
                         label: const Text('Upload Photo'),
@@ -427,7 +463,24 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPressed: (_selectedMainFolder.isEmpty ||
                                 _selectedSubFolder.isEmpty)
                             ? null
-                            : _pickImage,
+                            : () => _pickMedia(false),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.video_library),
+                        label: const Text('Upload Video'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        onPressed: (_selectedMainFolder.isEmpty ||
+                                _selectedSubFolder.isEmpty)
+                            ? null
+                            : () => _pickMedia(true),
                       ),
                     ],
                   ),
