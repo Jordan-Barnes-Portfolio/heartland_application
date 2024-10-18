@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:heartland_photo_app/annotation_screen.dart';
+import 'package:heartland_photo_app/claimsready_screen.dart';
 import 'package:heartland_photo_app/loc_track_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'photo_screen.dart';
@@ -279,14 +280,14 @@ class _HomeScreenState extends State<HomeScreen> {
             ListTile(
               leading: const Icon(Icons.folder),
               title: const Text('ClaimReady+ Inspection'),
-              onTap: () async {
-                final Uri uri =
-                    Uri.parse('https://google.com');
-                if (await canLaunch(uri.toString())) {
-                  await launch(uri.toString());
-                } else {
-                  throw 'Could not launch $uri';
-                }
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (BuildContext context){
+                      return const ClaimsreadyScreen();
+                    }
+                  )
+                );
               },
             ),
           ],
