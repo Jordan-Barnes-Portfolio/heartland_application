@@ -1,25 +1,28 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:heartland_photo_app/home_screen.dart';
-import 'package:heartland_photo_app/photo_screen.dart';
+import 'package:heartland_photo_app/media_screen.dart';
 import 'dart:io';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
+import 'package:video_player/video_player.dart';
 
 class AnnotationScreen extends StatefulWidget {
-  final String imagePath;
+  final String mediaPath;
   final String mainFolder;
   final String subFolder;
+  final bool isVideo;
   final List<CameraDescription> cameras;
 
   const AnnotationScreen({
     Key? key,
-    required this.imagePath,
+    required this.mediaPath,
     required this.mainFolder,
     required this.subFolder,
     required this.cameras,
+    required this.isVideo,
   }) : super(key: key);
 
   @override
@@ -33,6 +36,7 @@ class _AnnotationScreenState extends State<AnnotationScreen>
   bool _isListening = false;
   bool _speechInitialized = false;
   bool _isUploading = false;
+  VideoPlayerController? _videoPlayerController;
 
   @override
   void initState() {
@@ -40,6 +44,17 @@ class _AnnotationScreenState extends State<AnnotationScreen>
     WidgetsBinding.instance.addObserver(this);
     _speech = stt.SpeechToText();
     _initSpeech();
+    if (widget.isVideo) {
+      _initializeVideoPlayer();
+    }
+  }
+
+  void _initializeVideoPlayer() {
+    _videoPlayerController = VideoPlayerController.file(File(widget.mediaPath))
+      ..initialize().then((_) {
+        setState(() {});
+        _videoPlayerController!.play();
+      });
   }
 
   @override
@@ -47,6 +62,7 @@ class _AnnotationScreenState extends State<AnnotationScreen>
     WidgetsBinding.instance.removeObserver(this);
     _speech.cancel();
     _textController.dispose();
+    _videoPlayerController?.dispose();
     super.dispose();
   }
 
@@ -86,8 +102,7 @@ class _AnnotationScreenState extends State<AnnotationScreen>
         await _speech.stop();
         if (mounted) setState(() => _isListening = false);
       } else {
-        setState(
-            () => _isListening = true); // Set to true before starting to listen
+        setState(() => _isListening = true);
         try {
           var result = await _speech.listen(
             onResult: (result) {
@@ -104,7 +119,6 @@ class _AnnotationScreenState extends State<AnnotationScreen>
             listenFor: const Duration(seconds: 30),
             pauseFor: const Duration(seconds: 3),
           );
-          // If listen returns false, set _isListening back to false
           if (result == false) {
             if (mounted) setState(() => _isListening = false);
           }
@@ -118,24 +132,23 @@ class _AnnotationScreenState extends State<AnnotationScreen>
     }
   }
 
-  Future<void> _uploadPhotoAndAnnotation() async {
+  Future<void> _uploadMediaAndAnnotation() async {
     setState(() {
       _isUploading = true;
     });
 
     try {
       final String uniqueId = const Uuid().v4();
-      final String fileName = '$uniqueId.jpg';
+      final String fileName =
+          widget.isVideo ? '$uniqueId.mp4' : '$uniqueId.jpg';
       final String storagePath =
           '${widget.mainFolder}/${widget.subFolder}/$fileName';
 
-      // Upload the image to Firebase Storage
       final Reference storageRef =
           FirebaseStorage.instance.ref().child(storagePath);
-      await storageRef.putFile(File(widget.imagePath));
-      final String imageUrl = await storageRef.getDownloadURL();
+      await storageRef.putFile(File(widget.mediaPath));
+      final String mediaUrl = await storageRef.getDownloadURL();
 
-      // Update Firestore
       final DocumentReference folderRef = FirebaseFirestore.instance
           .collection('folders')
           .doc(widget.mainFolder);
@@ -158,18 +171,20 @@ class _AnnotationScreenState extends State<AnnotationScreen>
 
         Map<String, dynamic> subFolderData =
             Map<String, dynamic>.from(subFolders[widget.subFolder]);
-        Map<String, dynamic> photoDescriptions =
-            Map<String, dynamic>.from(subFolderData['photoDescriptions'] ?? {});
-        List<dynamic> photos =
-            List<dynamic>.from(subFolderData['photos'] ?? []);
 
-        photoDescriptions[imageUrl] = _textController.text;
-        photos.add(imageUrl);
+        Map<String, dynamic> mediaDescriptions =
+            Map<String, dynamic>.from(subFolderData['photoDescriptions'] ?? {});
+
+        List<String> mediaList =
+            List<String>.from(subFolderData['photos'] ?? []);
+
+        mediaDescriptions[mediaUrl] = _textController.text;
+        mediaList.add(mediaUrl);
 
         subFolders[widget.subFolder] = {
           ...subFolderData,
-          'photoDescriptions': photoDescriptions,
-          'photos': photos,
+          'photoDescriptions': mediaDescriptions,
+          'photos': mediaList,
         };
 
         transaction.update(folderRef, {'subFolders': subFolders});
@@ -179,24 +194,24 @@ class _AnnotationScreenState extends State<AnnotationScreen>
         const SnackBar(content: Text('Upload successful!')),
       );
 
-      // Redirect to PhotoScreen after successful upload
       if (!mounted) return;
-      final imagePath = await Navigator.push<String>(
+      final mediaPath = await Navigator.push<String>(
         context,
         MaterialPageRoute(
-          builder: (context) => PhotoScreen(camera: widget.cameras.first),
+          builder: (context) => MediaScreen(
+              camera: widget.cameras.first, isVideo: widget.isVideo),
         ),
       );
-      if (imagePath != null) {
-        // If a new photo was taken, replace the current AnnotationScreen with a new one
+      if (mediaPath != null) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => AnnotationScreen(
-              imagePath: imagePath,
+              mediaPath: mediaPath,
               mainFolder: widget.mainFolder,
               subFolder: widget.subFolder,
               cameras: widget.cameras,
+              isVideo: widget.isVideo,
             ),
           ),
         );
@@ -223,14 +238,13 @@ class _AnnotationScreenState extends State<AnnotationScreen>
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Annotate Image'),
+          title: Text('Annotate ${widget.isVideo ? 'Video' : 'Image'}'),
           backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.home),
             onPressed: () async {
               if (_isListening) await _speech.stop();
-              // Navigate back to HomeScreen
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(
                   builder: (context) => HomeScreen(),
@@ -253,10 +267,18 @@ class _AnnotationScreenState extends State<AnnotationScreen>
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      File(widget.imagePath),
-                      fit: BoxFit.cover,
-                    ),
+                    child: widget.isVideo
+                        ? (_videoPlayerController?.value.isInitialized ?? false)
+                            ? AspectRatio(
+                                aspectRatio:
+                                    _videoPlayerController!.value.aspectRatio,
+                                child: VideoPlayer(_videoPlayerController!),
+                              )
+                            : const Center(child: CircularProgressIndicator())
+                        : Image.file(
+                            File(widget.mediaPath),
+                            fit: BoxFit.cover,
+                          ),
                   ),
                 ),
               ),
@@ -329,7 +351,7 @@ class _AnnotationScreenState extends State<AnnotationScreen>
                         ),
                       ),
                       onPressed:
-                          _isUploading ? null : _uploadPhotoAndAnnotation,
+                          _isUploading ? null : _uploadMediaAndAnnotation,
                     ),
                   ],
                 ),
