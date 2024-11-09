@@ -62,7 +62,11 @@ class _AnnotationScreenState extends State<AnnotationScreen>
     WidgetsBinding.instance.removeObserver(this);
     _speech.cancel();
     _textController.dispose();
-    _videoPlayerController?.dispose();
+    // Ensure video player is properly disposed
+    if (_videoPlayerController != null) {
+      _videoPlayerController!.pause();
+      _videoPlayerController!.dispose();
+    }
     super.dispose();
   }
 
@@ -194,28 +198,26 @@ class _AnnotationScreenState extends State<AnnotationScreen>
         const SnackBar(content: Text('Upload successful!')),
       );
 
+      // Stop video playback if it's a video
+      if (widget.isVideo && _videoPlayerController != null) {
+        await _videoPlayerController!.pause();
+        await _videoPlayerController!.dispose();
+      }
+
       if (!mounted) return;
-      final mediaPath = await Navigator.push<String>(
+
+      // Navigate to MediaScreen without capturing new media
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (context) => MediaScreen(
-              camera: widget.cameras.first, isVideo: widget.isVideo),
+            camera: widget.cameras.first,
+            isVideo: widget.isVideo,
+            mainFolder: widget.mainFolder,
+            subFolder: widget.subFolder,
+          ),
         ),
       );
-      if (mediaPath != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AnnotationScreen(
-              mediaPath: mediaPath,
-              mainFolder: widget.mainFolder,
-              subFolder: widget.subFolder,
-              cameras: widget.cameras,
-              isVideo: widget.isVideo,
-            ),
-          ),
-        );
-      }
     } catch (e) {
       print('Error uploading: $e');
       ScaffoldMessenger.of(context).showSnackBar(
