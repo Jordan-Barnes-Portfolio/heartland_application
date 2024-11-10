@@ -8,7 +8,7 @@
 PRODUCT_NAME = heartland_photo_app
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.heartland.app
+PRODUCT_BUNDLE_IDENTIFIER = com.example.heartlandPhotoApp
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2024 com.example. All rights reserved.
