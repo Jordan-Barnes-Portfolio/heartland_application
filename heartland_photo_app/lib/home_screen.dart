@@ -196,8 +196,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final mediaPath = await Navigator.push<String>(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            MediaScreen(camera: _cameras.first, isVideo: isVideo),
+        builder: (context) => MediaScreen(
+          camera: _cameras.first,
+          isVideo: isVideo,
+          mainFolder: '',
+          subFolder: '',
+        ),
       ),
     );
 
@@ -278,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.location_city),
-              title: const Text('Job tracking'),
+              title: const Text('Mileage Tracking'),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) {
                   return LocationTrackingPage();
@@ -315,13 +319,10 @@ class _HomeScreenState extends State<HomeScreen> {
               leading: const Icon(Icons.folder),
               title: const Text('ClaimReady+ Inspection'),
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (BuildContext context){
-                      return const ClaimsreadyScreen();
-                    }
-                  )
-                );
+                Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (BuildContext context) {
+                  return const ClaimsreadyScreen();
+                }));
               },
             ),
           ],
