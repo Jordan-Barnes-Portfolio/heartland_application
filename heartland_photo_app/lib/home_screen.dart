@@ -196,17 +196,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final mediaPath = await Navigator.push<String>(
       context,
       MaterialPageRoute(
-<<<<<<< HEAD
-        builder: (context) =>
-            MediaScreen(camera: _cameras.first, isVideo: isVideo),
-=======
         builder: (context) => MediaScreen(
           camera: _cameras.first,
           isVideo: isVideo,
           mainFolder: '',
           subFolder: '',
         ),
->>>>>>> cd48af275cb52e79ce0029ca1d2e2876dcf83a13
       ),
     );
 
