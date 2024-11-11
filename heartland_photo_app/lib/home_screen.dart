@@ -9,16 +9,27 @@ import 'media_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  final String? initialFolderId; // Add these parameters
+  final String? initialFolderName;
+  final String? initialSubFolder;
+
+  const HomeScreen({
+    Key? key,
+    this.initialFolderId,
+    this.initialFolderName,
+    this.initialSubFolder,
+  }) : super(key: key);
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _selectedMainFolder = '';
+  String _selectedMainFolderId = ''; // Store the ID
+  String _selectedMainFolderName = ''; // Store the display name
   String _selectedSubFolder = '';
-  List<String> _mainFolders = [];
+  List<Map<String, String>> _mainFolders =
+      []; // Changed to store both id and name
   List<String> _subFolders = [
     'Initial Assessment',
     'Stabilization',
@@ -35,6 +46,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _scrollController = ScrollController();
     _loadMainFolders();
     _initializeCameras();
+
+    // Set initial values if provided
+    if (widget.initialFolderId != null) {
+      _selectedMainFolderId = widget.initialFolderId!;
+      _selectedMainFolderName = widget.initialFolderName ?? '';
+      _selectedSubFolder = widget.initialSubFolder ?? '';
+    }
   }
 
   @override
@@ -59,7 +77,13 @@ class _HomeScreenState extends State<HomeScreen> {
       final foldersSnapshot =
           await FirebaseFirestore.instance.collection('folders').get();
       setState(() {
-        _mainFolders = foldersSnapshot.docs.map((doc) => doc.id).toList();
+        _mainFolders = foldersSnapshot.docs
+            .map((doc) => {
+                  'id': doc.id,
+                  'name': doc.data()['folderName'] as String? ??
+                      doc.id, // Fallback to id if name not found
+                })
+            .toList();
       });
     } catch (e) {
       print('Error loading folders: $e');
@@ -71,10 +95,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _selectOrCreateMainFolder() async {
-    String? result = await showDialog<String>(
+    String? resultId = await showDialog<String>(
       context: context,
       builder: (BuildContext context) {
-        String newFolder = '';
         return AlertDialog(
           title: const Text('Select Main Folder'),
           content: StatefulBuilder(
@@ -83,21 +106,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButton<String>(
-                    value: _selectedMainFolder.isNotEmpty
-                        ? _selectedMainFolder
+                    value: _selectedMainFolderId.isNotEmpty
+                        ? _selectedMainFolderId
                         : null,
                     hint: const Text('Select a folder'),
                     onChanged: (String? newValue) {
                       setState(() {
-                        _selectedMainFolder = newValue!;
+                        _selectedMainFolderId = newValue!;
                       });
                     },
-                    items: _mainFolders
-                        .map<DropdownMenuItem<String>>((String value) {
+                    items: _mainFolders.map<DropdownMenuItem<String>>((folder) {
                       return DropdownMenuItem<String>(
-                        value: value,
+                        value: folder['id'],
                         child: Text(
-                          value,
+                          folder['name']!,
                           overflow: TextOverflow.ellipsis,
                         ),
                       );
@@ -118,8 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               child: const Text('OK'),
               onPressed: () {
-                Navigator.of(context).pop(
-                    newFolder.isNotEmpty ? newFolder : _selectedMainFolder);
+                Navigator.of(context).pop(_selectedMainFolderId);
               },
             ),
           ],
@@ -127,14 +148,26 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
 
-    if (result != null && result.isNotEmpty) {
+    if (resultId != null && resultId.isNotEmpty) {
+      // Find the corresponding folder name
+      final selectedFolder = _mainFolders.firstWhere(
+        (folder) => folder['id'] == resultId,
+        orElse: () => {'id': resultId},
+      );
+
       setState(() {
-        _selectedMainFolder = result;
+        _selectedMainFolderId = resultId;
+        _selectedMainFolderName = selectedFolder['name']!;
         _selectedSubFolder = '';
       });
-      if (!_mainFolders.contains(result)) {
-        await FirebaseFirestore.instance.collection('folders').doc(result).set({
-          'name': result,
+
+      // Check if folder exists, if not create it
+      if (!_mainFolders.any((folder) => folder['id'] == resultId)) {
+        await FirebaseFirestore.instance
+            .collection('folders')
+            .doc(resultId)
+            .set({
+          'folderName': _selectedMainFolderName,
           'subFolders': {
             'Initial Assessment': {'photoDescriptions': {}, 'photos': []},
             'Stabilization': {'photoDescriptions': {}, 'photos': []},
@@ -178,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _captureMedia(bool isVideo) async {
-    if (_selectedMainFolder.isEmpty || _selectedSubFolder.isEmpty) {
+    if (_selectedMainFolderId.isEmpty || _selectedSubFolder.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Please select a main folder and sub-folder first')),
@@ -199,8 +232,9 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context) => MediaScreen(
           camera: _cameras.first,
           isVideo: isVideo,
-          mainFolder: '',
-          subFolder: '',
+          mainFolderName: _selectedMainFolderName,
+          mainFolder: _selectedMainFolderId,
+          subFolder: _selectedSubFolder,
         ),
       ),
     );
@@ -211,7 +245,8 @@ class _HomeScreenState extends State<HomeScreen> {
         MaterialPageRoute(
           builder: (context) => AnnotationScreen(
             mediaPath: mediaPath,
-            mainFolder: _selectedMainFolder,
+            mainFolderName: _selectedMainFolderName, // Pass name instead of ID
+            mainFolder: _selectedMainFolderId, // Pass ID instead of name
             subFolder: _selectedSubFolder,
             cameras: _cameras,
             isVideo: isVideo,
@@ -222,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _pickMedia(bool isVideo) async {
-    if (_selectedMainFolder.isEmpty || _selectedSubFolder.isEmpty) {
+    if (_selectedMainFolderId.isEmpty || _selectedSubFolder.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Please select a main folder and sub-folder first')),
@@ -231,23 +266,41 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final ImagePicker _picker = ImagePicker();
-    final XFile? media = isVideo
-        ? await _picker.pickVideo(source: ImageSource.gallery)
-        : await _picker.pickImage(source: ImageSource.gallery);
-
-    if (media != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AnnotationScreen(
-            mediaPath: media.path,
-            mainFolder: _selectedMainFolder,
-            subFolder: _selectedSubFolder,
-            cameras: _cameras,
-            isVideo: isVideo,
+    if (isVideo) {
+      final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
+      if (video != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AnnotationScreen(
+              mediaPath: video.path,
+              mainFolderName: _selectedMainFolderName,
+              mainFolder: _selectedMainFolderId,
+              subFolder: _selectedSubFolder,
+              cameras: _cameras,
+              isVideo: true,
+            ),
           ),
-        ),
-      );
+        );
+      }
+    } else {
+      final List<XFile>? images = await _picker.pickMultiImage();
+      if (images != null && images.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AnnotationScreen(
+              mediaPath: images[0].path,
+              mainFolder: _selectedMainFolderId,
+              mainFolderName: _selectedMainFolderName,
+              subFolder: _selectedSubFolder,
+              cameras: _cameras,
+              isVideo: false,
+              additionalImages: images.sublist(1), // Pass remaining images
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -375,9 +428,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 36),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.folder),
-                    label: Text(_selectedMainFolder.isEmpty
+                    label: Text(_selectedMainFolderName.isEmpty
                         ? 'Select Main Folder'
-                        : 'Main Folder: $_selectedMainFolder'),
+                        : 'Main Folder: $_selectedMainFolderName'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
                       padding: const EdgeInsets.symmetric(
@@ -403,7 +456,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     onPressed:
-                        _selectedMainFolder.isEmpty ? null : _selectSubFolder,
+                        _selectedMainFolderId.isEmpty ? null : _selectSubFolder,
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -420,7 +473,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(30),
                           ),
                         ),
-                        onPressed: (_selectedMainFolder.isEmpty ||
+                        onPressed: (_selectedMainFolderId.isEmpty ||
                                 _selectedSubFolder.isEmpty ||
                                 !_camerasInitialized)
                             ? null
@@ -438,7 +491,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(30),
                           ),
                         ),
-                        onPressed: (_selectedMainFolder.isEmpty ||
+                        onPressed: (_selectedMainFolderId.isEmpty ||
                                 _selectedSubFolder.isEmpty ||
                                 !_camerasInitialized)
                             ? null
@@ -461,7 +514,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(30),
                           ),
                         ),
-                        onPressed: (_selectedMainFolder.isEmpty ||
+                        onPressed: (_selectedMainFolderId.isEmpty ||
                                 _selectedSubFolder.isEmpty)
                             ? null
                             : () => _pickMedia(false),
@@ -478,7 +531,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(30),
                           ),
                         ),
-                        onPressed: (_selectedMainFolder.isEmpty ||
+                        onPressed: (_selectedMainFolderId.isEmpty ||
                                 _selectedSubFolder.isEmpty)
                             ? null
                             : () => _pickMedia(true),

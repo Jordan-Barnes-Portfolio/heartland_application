@@ -1,7 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:heartland_photo_app/home_screen.dart';
-import 'package:heartland_photo_app/media_screen.dart';
 import 'dart:io';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:firebase_storage/firebase_storage.dart';
@@ -11,18 +10,22 @@ import 'package:video_player/video_player.dart';
 
 class AnnotationScreen extends StatefulWidget {
   final String mediaPath;
+  final String mainFolderName;
   final String mainFolder;
   final String subFolder;
   final bool isVideo;
   final List<CameraDescription> cameras;
+  final List<XFile>? additionalImages; // Add this field
 
   const AnnotationScreen({
     Key? key,
     required this.mediaPath,
+    required this.mainFolderName,
     required this.mainFolder,
     required this.subFolder,
     required this.cameras,
     required this.isVideo,
+    this.additionalImages, // Add this parameter
   }) : super(key: key);
 
   @override
@@ -37,6 +40,7 @@ class _AnnotationScreenState extends State<AnnotationScreen>
   bool _speechInitialized = false;
   bool _isUploading = false;
   VideoPlayerController? _videoPlayerController;
+  bool _isDisposed = false;
 
   @override
   void initState() {
@@ -49,20 +53,33 @@ class _AnnotationScreenState extends State<AnnotationScreen>
     }
   }
 
-  void _initializeVideoPlayer() {
-    _videoPlayerController = VideoPlayerController.file(File(widget.mediaPath))
-      ..initialize().then((_) {
+  Future<void> _initializeVideoPlayer() async {
+    if (_isDisposed) return;
+
+    // Dispose of any existing controller
+    await _videoPlayerController?.dispose();
+
+    if (_isDisposed) return;
+
+    _videoPlayerController = VideoPlayerController.file(File(widget.mediaPath));
+
+    try {
+      await _videoPlayerController!.initialize();
+      if (!_isDisposed) {
         setState(() {});
-        _videoPlayerController!.play();
-      });
+        await _videoPlayerController!.play();
+      }
+    } catch (e) {
+      print('Error initializing video player: $e');
+    }
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
     WidgetsBinding.instance.removeObserver(this);
     _speech.cancel();
     _textController.dispose();
-    // Ensure video player is properly disposed
     if (_videoPlayerController != null) {
       _videoPlayerController!.pause();
       _videoPlayerController!.dispose();
@@ -142,100 +159,120 @@ class _AnnotationScreenState extends State<AnnotationScreen>
     });
 
     try {
-      final String uniqueId = const Uuid().v4();
-      final String fileName =
-          widget.isVideo ? '$uniqueId.mp4' : '$uniqueId.jpg';
-      final String storagePath =
-          '${widget.mainFolder}/${widget.subFolder}/$fileName';
+      // Upload current media
+      await _uploadSingleMedia(widget.mediaPath, _textController.text);
 
-      final Reference storageRef =
-          FirebaseStorage.instance.ref().child(storagePath);
-      await storageRef.putFile(File(widget.mediaPath));
-      final String mediaUrl = await storageRef.getDownloadURL();
-
-      final DocumentReference folderRef = FirebaseFirestore.instance
-          .collection('folders')
-          .doc(widget.mainFolder);
-
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        DocumentSnapshot folderSnapshot = await transaction.get(folderRef);
-
-        if (!folderSnapshot.exists) {
-          throw Exception('Main folder does not exist');
+      // Upload additional images if any
+      if (widget.additionalImages != null) {
+        for (var image in widget.additionalImages!) {
+          await _uploadSingleMedia(
+              image.path, ''); // Empty description for additional images
         }
+      }
 
-        Map<String, dynamic> data =
-            folderSnapshot.data() as Map<String, dynamic>;
-        Map<String, dynamic> subFolders =
-            Map<String, dynamic>.from(data['subFolders'] ?? {});
+      if (!_isDisposed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Upload successful!')),
+        );
+      }
 
-        if (!subFolders.containsKey(widget.subFolder)) {
-          throw Exception('Sub-folder does not exist');
-        }
-
-        Map<String, dynamic> subFolderData =
-            Map<String, dynamic>.from(subFolders[widget.subFolder]);
-
-        Map<String, dynamic> mediaDescriptions =
-            Map<String, dynamic>.from(subFolderData['photoDescriptions'] ?? {});
-
-        List<String> mediaList =
-            List<String>.from(subFolderData['photos'] ?? []);
-
-        mediaDescriptions[mediaUrl] = _textController.text;
-        mediaList.add(mediaUrl);
-
-        subFolders[widget.subFolder] = {
-          ...subFolderData,
-          'photoDescriptions': mediaDescriptions,
-          'photos': mediaList,
-        };
-
-        transaction.update(folderRef, {'subFolders': subFolders});
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Upload successful!')),
-      );
-
-      // Stop video playback if it's a video
+      // Clean up video player before navigation
       if (widget.isVideo && _videoPlayerController != null) {
         await _videoPlayerController!.pause();
         await _videoPlayerController!.dispose();
+        _videoPlayerController = null;
       }
 
       if (!mounted) return;
 
-      // Navigate to MediaScreen without capturing new media
-      Navigator.pushReplacement(
+      // Navigate back to HomeScreen instead of MediaScreen
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => MediaScreen(
-            camera: widget.cameras.first,
-            isVideo: widget.isVideo,
-            mainFolder: widget.mainFolder,
-            subFolder: widget.subFolder,
+          builder: (context) => HomeScreen(
+            initialFolderId: widget.mainFolder,
+            initialFolderName: widget
+                .mainFolder, // You might need to pass this through from previous screens
+            initialSubFolder: widget.subFolder,
           ),
         ),
+        (Route<dynamic> route) => false,
       );
     } catch (e) {
       print('Error uploading: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Upload failed. Please try again.')),
-      );
+      if (!_isDisposed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Upload failed. Please try again.')),
+        );
+      }
     } finally {
-      setState(() {
-        _isUploading = false;
-      });
+      if (!_isDisposed) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
     }
+  }
+
+  Future<void> _uploadSingleMedia(String mediaPath, String description) async {
+    final String uniqueId = const Uuid().v4();
+    final String fileName = widget.isVideo ? '$uniqueId.mp4' : '$uniqueId.jpg';
+    final String storagePath =
+        '${widget.mainFolder}/${widget.subFolder}/$fileName';
+
+    final Reference storageRef =
+        FirebaseStorage.instance.ref().child(storagePath);
+    await storageRef.putFile(File(mediaPath));
+    final String mediaUrl = await storageRef.getDownloadURL();
+
+    final DocumentReference folderRef =
+        FirebaseFirestore.instance.collection('folders').doc(widget.mainFolder);
+
+    await FirebaseFirestore.instance.runTransaction((transaction) async {
+      DocumentSnapshot folderSnapshot = await transaction.get(folderRef);
+
+      if (!folderSnapshot.exists) {
+        throw Exception('Main folder does not exist');
+      }
+
+      Map<String, dynamic> data = folderSnapshot.data() as Map<String, dynamic>;
+      Map<String, dynamic> subFolders =
+          Map<String, dynamic>.from(data['subFolders'] ?? {});
+
+      if (!subFolders.containsKey(widget.subFolder)) {
+        throw Exception('Sub-folder does not exist');
+      }
+
+      Map<String, dynamic> subFolderData =
+          Map<String, dynamic>.from(subFolders[widget.subFolder]);
+      Map<String, dynamic> mediaDescriptions =
+          Map<String, dynamic>.from(subFolderData['photoDescriptions'] ?? {});
+      List<String> mediaList = List<String>.from(subFolderData['photos'] ?? []);
+
+      mediaDescriptions[mediaUrl] = description;
+      mediaList.add(mediaUrl);
+
+      subFolders[widget.subFolder] = {
+        ...subFolderData,
+        'photoDescriptions': mediaDescriptions,
+        'photos': mediaList,
+      };
+
+      transaction.update(folderRef, {'subFolders': subFolders});
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      onPopInvoked: (bool value) {
-        if (_isListening) _speech.stop();
+      onPopInvoked: (bool value) async {
+        if (_isListening) await _speech.stop();
         _isListening = false;
+        if (_videoPlayerController != null) {
+          await _videoPlayerController!.pause();
+          await _videoPlayerController!.dispose();
+          _videoPlayerController = null;
+        }
         print('Pop invoked: $value');
       },
       child: Scaffold(
@@ -247,9 +284,20 @@ class _AnnotationScreenState extends State<AnnotationScreen>
             icon: const Icon(Icons.home),
             onPressed: () async {
               if (_isListening) await _speech.stop();
-              Navigator.of(context).pushAndRemoveUntil(
+              if (_videoPlayerController != null) {
+                await _videoPlayerController!.pause();
+                await _videoPlayerController!.dispose();
+                _videoPlayerController = null;
+              }
+              Navigator.pushAndRemoveUntil(
+                context,
                 MaterialPageRoute(
-                  builder: (context) => HomeScreen(),
+                  builder: (context) => HomeScreen(
+                    initialFolderId: widget.mainFolder,
+                    initialFolderName: widget
+                        .mainFolder, // You might need to pass this through from previous screens
+                    initialSubFolder: widget.subFolder,
+                  ),
                 ),
                 (Route<dynamic> route) => false,
               );
@@ -337,7 +385,7 @@ class _AnnotationScreenState extends State<AnnotationScreen>
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Main Folder: ${widget.mainFolder}\nSub-Folder: ${widget.subFolder}',
+                      'Main Folder: ${widget.mainFolderName}\nSub-Folder: ${widget.subFolder}',
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.bold),
                     ),
