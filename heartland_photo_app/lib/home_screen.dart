@@ -168,6 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
             .doc(resultId)
             .set({
           'folderName': _selectedMainFolderName,
+          'id': resultId,
           'subFolders': {
             'Initial Assessment': {'photoDescriptions': {}, 'photos': []},
             'Stabilization': {'photoDescriptions': {}, 'photos': []},
