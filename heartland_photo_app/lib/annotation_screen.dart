@@ -256,6 +256,10 @@ class _AnnotationScreenState extends State<AnnotationScreen>
         ...subFolderData,
         'photoDescriptions': mediaDescriptions,
         'photos': mediaList,
+        'timestamps': {
+          ...subFolderData['timestamps'] ?? {},
+          mediaUrl: FieldValue.serverTimestamp(),
+        }
       };
 
       transaction.update(folderRef, {'subFolders': subFolders});
