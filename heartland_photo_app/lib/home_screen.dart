@@ -3,7 +3,7 @@ import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:heartland_photo_app/annotation_screen.dart';
 import 'package:heartland_photo_app/claimsready_screen.dart';
-import 'package:heartland_photo_app/loc_track_screen.dart';
+import 'package:heartland_photo_app/hours_tracker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'media_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -335,11 +335,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.location_city),
-              title: const Text('Mileage Tracking'),
+              leading: const Icon(Icons.punch_clock_rounded),
+              title: const Text('Time Clock'),
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) {
-                  return LocationTrackingPage();
+                  return HoursTrackerPage();
                 }));
               },
             ),

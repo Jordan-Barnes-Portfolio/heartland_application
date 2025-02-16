@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:heartland_photo_app/home_screen.dart';
+import 'package:heartland_photo_app/hours_tracker.dart';
 import 'package:location/location.dart';
 import 'package:geocoding/geocoding.dart' as geocoding;
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
@@ -86,6 +87,15 @@ class _LocationTrackingPageState extends State<LocationTrackingPage> {
                 } else {
                   throw 'Could not launch $uri';
                 }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.punch_clock_rounded),
+              title: const Text('Time Clock'),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) {
+                  return HoursTrackerPage();
+                }));
               },
             ),
           ],
