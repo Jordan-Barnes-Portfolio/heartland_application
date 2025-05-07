@@ -1,0 +1,7 @@
+// Ensure we're building with the latest SDK
+IPHONEOS_DEPLOYMENT_TARGET=15.0
+DEVELOPMENT_TEAM=
+
+// Support for arm64 architecture (required for newer iOS devices)
+ARCHS=arm64
+EXCLUDED_ARCHS[sdk=iphonesimulator*]=arm64 
