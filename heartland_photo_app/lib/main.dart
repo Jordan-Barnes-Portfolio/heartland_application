@@ -50,7 +50,7 @@ class _WebViewAppState extends State<WebViewApp> {
           },
         ),
       )
-      ..loadRequest(Uri.parse('https://heartland-workforce-qynp.vercel.app'));
+      ..loadRequest(Uri.parse('https://heartland-workforce.vercel.app'));
   }
 
   @override
